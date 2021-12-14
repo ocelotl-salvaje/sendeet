@@ -94,7 +94,7 @@ export default function TransactionList(props: TransactionListProps) {
         <h3>
             Recent transactions
             <IconButton onClick={loadTransactions}>
-                <RefreshIcon/>
+                <RefreshIcon />
             </IconButton>
         </h3>
         <Box sx={{ width: '100%', height: 370, marginTop: 2, marginBottom: 2 }}>
@@ -111,52 +111,49 @@ export default function TransactionList(props: TransactionListProps) {
 
 async function getTransactions(web3: Web3, address: string, consumer: (txs: TransactionViewModel[]) => void): Promise<void> {
     console.log(`Loading transactions for ${address}`);
-    let transactions: TransactionViewModel[] = [];
     const currentBlock = await web3.eth.getBlockNumber();
     console.log(`Current block: ${currentBlock}`);
     let total = 0;
+    const tasks = []
     for (let i = 0; i < Math.min(MAX_BLOCKS, currentBlock); i++) {
-        const block = await web3.eth.getBlock(currentBlock - i, true);
-        if (!block) {
-            continue;
-        }
-        if (i % 10 === 0) {
-            console.log(`Checking block ${currentBlock - i}`);
-        }
-        const trans = block.transactions
-            .filter(t => t.to && (t.from.toLowerCase() === address ||
-                t.to.toLowerCase() === address))
-            .map(t => {
-                const sent = t.from.toLowerCase() === address;
-                return {
-                    id: t.hash,
-                    sent: sent,
-                    friend: sent
-                        ? t.to.toLowerCase()
-                        : t.from.toLowerCase(),
-                    ethTransactionId: t.hash,
-                    amount: Number.parseFloat(t.value) / WEI_IN_ETH,
-                    timestamp: typeof block.timestamp === 'string'
-                        ? Number.parseFloat(block.timestamp)
-                        : block.timestamp,
-                };
+        const promise = web3.eth.getBlock(currentBlock - i, true)
+            .then(async block => {
+                if (!block) {
+                    return;
+                }
+                if (i % 10 === 0) {
+                    console.log(`Checking block ${block.number}`);
+                }
+                const trans = block.transactions
+                    .filter(t => t.to && (t.from.toLowerCase() === address ||
+                        t.to.toLowerCase() === address))
+                    .map(t => {
+                        const sent = t.from.toLowerCase() === address;
+                        return {
+                            id: t.hash,
+                            sent: sent,
+                            friend: sent
+                                ? t.to.toLowerCase()
+                                : t.from.toLowerCase(),
+                            ethTransactionId: t.hash,
+                            amount: Number.parseFloat(t.value) / WEI_IN_ETH,
+                            timestamp: typeof block.timestamp === 'string'
+                                ? Number.parseFloat(block.timestamp)
+                                : block.timestamp,
+                        };
+                    });
+                total += trans.length;
+                await resolveNames(trans);
+                consumer(trans);
             });
-        transactions.push(...trans);
-        total += trans.length;
-        if (transactions.length >= 10) {
-            await resolveNames(transactions);
-            consumer(transactions);
-            transactions = [];
-        }
+        tasks.push(promise);
     }
-    await resolveNames(transactions);
-    consumer(transactions);
+    await Promise.all(tasks);
     console.log(`Loaded ${total} transactions`);
-
 }
 
 async function resolveNames(transactions: TransactionViewModel[]): Promise<void> {
-    if (!transactions) {
+    if (transactions.length === 0) {
         return;
     }
     const friendAddresses = Array.from(new Set(transactions.map(t => t.friend))).join(',');
