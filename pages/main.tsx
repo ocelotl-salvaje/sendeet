@@ -99,7 +99,7 @@ function welcome() {
             <h1>Welcome to Sendeet!</h1>
             <p>
                 Sendeet is a Venmo-like app that allows you to send ETH to your friends or pay for goods and services.
-                Press 'Connect to wallet' to create a profile and start sending/receiving money.
+                Press &apos;Connect to wallet&apos; to create a profile and start sending/receiving money.
             </p>
             <p>
                 All transactions made through this app are initiated on the client and go through your browser plugin wallet.
@@ -108,7 +108,7 @@ function welcome() {
             <p>
                 When you create or edit your profile we request you to sign the edit using your wallet.
                 This is completely secure and free of charge. We need it to verify that request is coming from you, so that
-                malicious actors don't gain access to your Sendeet profile.
+                malicious actors don&apos;t gain access to your Sendeet profile.
             </p>
         </Paper>
     </Container>;

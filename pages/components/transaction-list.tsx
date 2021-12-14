@@ -1,5 +1,6 @@
 import { Box, IconButton, Tooltip } from "@mui/material";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import RefreshIcon from '@mui/icons-material/Refresh';
 import { DataGrid, GridColumns } from "@mui/x-data-grid";
 import { useEffect, useRef, useState } from "react";
 import Web3 from "web3";
@@ -12,7 +13,7 @@ export type TransactionListProps = {
     lastUpdate: number,
 }
 
-const MAX_BLOCKS = 100;
+const MAX_BLOCKS = 1000;
 
 type TransactionViewModel = Transaction & {
     id: string,
@@ -70,6 +71,14 @@ export default function TransactionList(props: TransactionListProps) {
     const [rows, setRows] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
 
+    const loadTransactions = () => {
+        setIsLoading(true);
+        setRows([]);
+        getTransactions(props.web3, props.address, txs => setRows(prev => prev.concat(txs)))
+            .catch(err => alert(`Failed to fetch transactions: ${err}`))
+            .finally(() => setIsLoading(false));
+    };
+
     const prevProps = useRef(props);
     useEffect(() => {
         if (props.lastUpdate === prevProps.current.lastUpdate) {
@@ -78,15 +87,16 @@ export default function TransactionList(props: TransactionListProps) {
         if (isLoading) {
             return;
         }
-        setIsLoading(true);
-        setRows([]);
-        getTransactions(props.web3, props.address, txs => setRows(prev => prev.concat(txs)))
-            .catch(err => alert(`Failed to fetch transactions: ${err}`))
-            .finally(() => setIsLoading(false));
+        loadTransactions();
     }, [props.lastUpdate]);
 
     return <Box>
-        <h3>Recent transactions</h3>
+        <h3>
+            Recent transactions
+            <IconButton onClick={loadTransactions}>
+                <RefreshIcon/>
+            </IconButton>
+        </h3>
         <Box sx={{ width: '100%', height: 370, marginTop: 2, marginBottom: 2 }}>
             <DataGrid
                 columns={columns}
