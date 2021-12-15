@@ -1,20 +1,39 @@
 import { NextApiRequest, NextApiResponse } from "next";
+import { withIronSessionApiRoute } from "iron-session/next";
 import Web3 from "web3";
 import Keys from "./keys";
+import { User } from "../../data/model";
 
-type Handler = (req: NextApiRequest, res: NextApiResponse) => Promise<void>;
+type Handler = (req: NextApiRequest, res: NextApiResponse) => Promise<void> | void;
 
 type HandlerMap = { [method: string]: Handler };
 
+const COOKIE_NAME = 'sendeet_session';
+
+declare module "iron-session" {
+    interface IronSessionData {
+        user?: User;
+    }
+}
+
 export function defineHandlers(handlers: HandlerMap): Handler {
-    return async (req: NextApiRequest, res: NextApiResponse) => {
-        const handler = handlers[req.method];
-        if (handler) {
-            await handler(req, res);
-        } else {
-            res.status(400).end();
-        }
-    };
+    return withIronSessionApiRoute(
+        async (req: NextApiRequest, res: NextApiResponse) => {
+            const handler = handlers[req.method];
+            if (handler) {
+                await handler(req, res);
+            } else {
+                res.status(400).end();
+            }
+        },
+        {
+            cookieName: COOKIE_NAME,
+            password: Keys.cookiePassword,
+            cookieOptions: {
+                secure: process.env.NODE_ENV === 'production',
+            },
+        },
+    );
 }
 
 const ENDPOINTS = {

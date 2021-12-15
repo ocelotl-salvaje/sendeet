@@ -27,7 +27,14 @@ export default function ProfileToolbar(props: ProfileToolbarProps) {
         setFirstTime(true);
         setIsProfileOpen(true);
     };
-    const login = () => getOrCreateUser(props.ethereum, props.web3, updateUser, handleNewUser);
+    const login = () => getLoggedInUser()
+        .then(user => {
+            if (!user || user.address !== props.ethereum.selectedAddress.toLowerCase()) {
+                loginOrCreateUser(user, props.web3, props.ethereum, updateUser, handleNewUser);
+            } else {
+                updateUser(user);
+            }
+        });
 
     useEffect(() => {
         if (!user) {
@@ -83,24 +90,54 @@ export default function ProfileToolbar(props: ProfileToolbarProps) {
             onClick={connectEthereum}>Connect to wallet</Button>;
 }
 
-async function getOrCreateUser(ethereum, web3: Web3, setUser: (u: User) => void, onNewUser?: (u: User) => void) {
+async function loginOrCreateUser(prevUser: User, web3: Web3, ethereum, setUser: (u: User) => void, onNewUser?: (u: User) => void) {
     const address = ethereum.selectedAddress;
     if (!address) {
         setUser(null);
         return;
     }
+
     const resp = await fetch(`/api/user/${address}`);
+    let user: User = null;
     if (resp.ok) {
         const data = await resp.json();
-        setUser(validateUser(data));
+        user = validateUser(data);
+        if (prevUser && !confirm(`Log in as ${user.name}?`)) {
+            return;
+        }
     } else if (resp.status === 404) {
-        const user: User = {
+        user = {
             address: address,
             name: 'Anon',
         };
-        setUser(user);
         onNewUser?.(user);
     }
+    const success = await loginAsUser(web3, user);
+    if (success) {
+        setUser(user);
+    }
+}
+
+async function getLoggedInUser(): Promise<User> {
+    const resp = await fetch(`/api/login`);
+    if (resp.ok) {
+        const data = await resp.json();
+        return validateUser(data);
+    }
+    return null;
+}
+
+async function loginAsUser(web3: Web3, user: User): Promise<boolean> {
+    const request = await createSignedRequest(web3, `Log in as ${user.name}`, user)
+    const resp = await fetch(`/api/login`, {
+        method: 'POST',
+        body: JSON.stringify(request),
+    });
+    if (!resp.ok) {
+        alert(`Login failed: ${resp.status}`);
+        return false;
+    }
+    return true;
 }
 
 async function saveUser(web3: Web3, user: User, overwrite: boolean): Promise<User> {
@@ -110,14 +147,7 @@ async function saveUser(web3: Web3, user: User, overwrite: boolean): Promise<Use
     }
 
     const data = JSON.stringify(user);
-    const signature = await web3.eth.personal.sign(data, user.address, '');
-    const network = await web3.eth.net.getNetworkType();
-    console.log('Network: ' + network);
-    const request: SignedRequest = {
-        signature: signature,
-        data: data,
-        network: network,
-    };
+    const request = await createSignedRequest(web3, data, user);
 
     const saveResp = await fetch(url, {
         method: 'PUT',
@@ -128,4 +158,16 @@ async function saveUser(web3: Web3, user: User, overwrite: boolean): Promise<Use
         return validateUser(data);
     }
     return null;
+}
+
+async function createSignedRequest(web3: Web3, data: string, user: User) {
+    const signature = await web3.eth.personal.sign(data, user.address, '');
+    const network = await web3.eth.net.getNetworkType();
+    console.log('Network: ' + network);
+    const request: SignedRequest = {
+        signature: signature,
+        data: data,
+        network: network,
+    };
+    return request;
 }
