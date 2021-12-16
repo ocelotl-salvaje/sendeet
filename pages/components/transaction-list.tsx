@@ -1,11 +1,13 @@
 import { Box, IconButton, Tooltip } from "@mui/material";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import NotesIcon from '@mui/icons-material/Notes';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import { DataGrid, GridColumns } from "@mui/x-data-grid";
+import { DataGrid, GridColumns, gridColumnsTotalWidthSelector } from "@mui/x-data-grid";
 import { useEffect, useRef, useState } from "react";
 import Web3 from "web3";
 import { Transaction } from "../../data/model";
 import { WEI_IN_ETH } from "../api/util";
+import { validateTransaction } from "../../data/validation";
 
 export type TransactionListProps = {
     web3: Web3,
@@ -24,7 +26,7 @@ type TransactionViewModel = Transaction & {
 
 const columns: GridColumns = [
     {
-        field: 'ethTransactionId',
+        field: 'txHash',
         headerName: 'Tx Hash',
         minWidth: 100,
         flex: 0.5,
@@ -60,11 +62,21 @@ const columns: GridColumns = [
     {
         field: 'timestamp',
         headerName: 'Time',
-        valueGetter: params => new Date(params.row.timestamp * 1000),
+        valueGetter: params => new Date(params.row.timestamp),
         valueFormatter: params => params.value.toString(),
         minWidth: 50,
         flex: 0.5,
     },
+    {
+        field: 'note',
+        headerName: 'N',
+        renderCell: params => params.row.note && <Tooltip title={params.row.note}>
+            <IconButton>
+                <NotesIcon fontSize="small" />
+            </IconButton>
+        </Tooltip>,
+        width: 20,
+    }
 ];
 
 export default function TransactionList(props: TransactionListProps) {
@@ -74,7 +86,8 @@ export default function TransactionList(props: TransactionListProps) {
     const loadTransactions = () => {
         setIsLoading(true);
         setRows([]);
-        getTransactions(props.web3, props.address, txs => setRows(prev => prev.concat(txs)))
+        getTransactions(props.address)
+            .then(setRows)
             .catch(err => alert(`Failed to fetch transactions: ${err}`))
             .finally(() => setIsLoading(false));
     };
@@ -109,10 +122,33 @@ export default function TransactionList(props: TransactionListProps) {
     </Box>;
 }
 
-async function getTransactions(web3: Web3, address: string, consumer: (txs: TransactionViewModel[]) => void): Promise<void> {
+async function getTransactions(userAddr: string): Promise<TransactionViewModel[]> {
+    const resp = await fetch(`/api/transactions/${userAddr}`);
+    if (!resp.ok) {
+        console.log(`Failed to fetch transactions for user ${userAddr}: ${resp.status}`);
+        return [];
+    }
+    const data = await resp.json() as any[];
+    return data.map(validateTransaction)
+        .filter(x => x)
+        .map(tx => {
+            const sent = tx.addressFrom === userAddr;
+            return {
+                ...tx,
+                id: tx.txHash,
+                sent: sent,
+                friend: sent ? tx.addressTo : tx.addressFrom,
+                friendName: sent ? tx.nameTo : tx.nameFrom,
+            };
+        })
+        .sort((tx1, tx2) => tx2.timestamp - tx1.timestamp);
+}
+
+async function getTransactionsFromChain(web3: Web3, address: string, consumer: (txs: TransactionViewModel[]) => void): Promise<void> {
     console.log(`Loading transactions for ${address}`);
     const currentBlock = await web3.eth.getBlockNumber();
     console.log(`Current block: ${currentBlock}`);
+    const network = await web3.eth.net.getNetworkType();
     let total = 0;
     const tasks = []
     for (let i = 0; i < Math.min(MAX_BLOCKS, currentBlock); i++) {
@@ -135,7 +171,8 @@ async function getTransactions(web3: Web3, address: string, consumer: (txs: Tran
                             friend: sent
                                 ? t.to.toLowerCase()
                                 : t.from.toLowerCase(),
-                            ethTransactionId: t.hash,
+                            txHash: t.hash,
+                            network: network,
                             amount: Number.parseFloat(t.value) / WEI_IN_ETH,
                             timestamp: typeof block.timestamp === 'string'
                                 ? Number.parseFloat(block.timestamp)

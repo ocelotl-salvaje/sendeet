@@ -9,6 +9,7 @@ import { validateUser } from "../../data/validation";
 export type ProfileToolbarProps = {
     ethereum: any,
     web3: Web3,
+    onUserChanging?: () => void,
     onUserChanged?: (u: User) => void,
 }
 
@@ -30,7 +31,7 @@ export default function ProfileToolbar(props: ProfileToolbarProps) {
     const login = () => getLoggedInUser()
         .then(user => {
             if (!user || user.address !== props.ethereum.selectedAddress.toLowerCase()) {
-                loginOrCreateUser(user, props.web3, props.ethereum, updateUser, handleNewUser);
+                loginOrCreateUser(props.web3, props.ethereum, updateUser, handleNewUser, props.onUserChanging);
             } else {
                 updateUser(user);
             }
@@ -90,21 +91,23 @@ export default function ProfileToolbar(props: ProfileToolbarProps) {
             onClick={connectEthereum}>Connect to wallet</Button>;
 }
 
-async function loginOrCreateUser(prevUser: User, web3: Web3, ethereum, setUser: (u: User) => void, onNewUser?: (u: User) => void) {
+async function loginOrCreateUser(web3: Web3, ethereum,
+    setUser: (u: User) => void,
+    onNewUser?: (u: User) => void,
+    onUserChanging?: () => void) {
     const address = ethereum.selectedAddress;
     if (!address) {
         setUser(null);
         return;
     }
 
+    onUserChanging();
+
     const resp = await fetch(`/api/user/${address}`);
     let user: User = null;
     if (resp.ok) {
         const data = await resp.json();
         user = validateUser(data);
-        if (prevUser && !confirm(`Log in as ${user.name}?`)) {
-            return;
-        }
     } else if (resp.status === 404) {
         user = {
             address: address,

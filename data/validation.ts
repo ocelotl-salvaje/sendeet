@@ -43,15 +43,19 @@ export function validateUser(data: any): User {
 
 export function validateTransaction(data: any): Transaction {
     const tran = data as Transaction;
-    if (!tran.ethTransactionId) {
+    if (!tran.txHash || !tran.network) {
         return null;
     }
     return {
-        ethTransactionId: tran.ethTransactionId,
+        txHash: tran.txHash,
+        network: tran.network,
         addressFrom: tran.addressFrom,
         addressTo: tran.addressTo,
         amount: tran.amount,
+        timestamp: tran.timestamp,
         status: tran.status,
+        nameFrom: tran.nameFrom,
+        nameTo: tran.nameTo,
         note: tran.note,
     };
 }

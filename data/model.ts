@@ -19,12 +19,14 @@ export type TransactionStatus =
     'ERROR';
 
 export type Transaction = {
-    ethTransactionId: string,
+    txHash: string,
+    network: string,
     addressFrom?: string,
     addressTo?: string,
     amount?: number,
     status?: TransactionStatus,
     timestamp?: number,
+    nameFrom?: string,
     nameTo?: string,
     note?: string,
 }
