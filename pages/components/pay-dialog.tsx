@@ -47,8 +47,8 @@ export default function PayDialog(props: PayDialogProps) {
                     onChange={e => setTo(e.target.value)} />
                 <TextField id="amount" label="Amount (ETH)" type="number" value={amount} fullWidth margin="dense"
                     onChange={e => setAmount(Number.parseFloat(e.target.value))} />
-                {/* <TextField id="note" label="Note (optional)" type="string" value={note}
-                    onChange={e => setNote(e.target.value)} /> */}
+                <TextField id="note" label="Note (optional)" type="string" value={note} fullWidth margin="dense"
+                    onChange={e => setNote(e.target.value)} />
             </DialogContent>
             <DialogActions>
                 <Button onClick={onCancel}>Cancel</Button>

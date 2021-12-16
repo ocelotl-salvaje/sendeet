@@ -52,17 +52,22 @@ export default class DAO {
 
     public async getUserTransactions(userId: string): Promise<Transaction[]> {
         const ds = datastore();
-        const query = ds.createQuery(KIND_TRANSACTION)
-            .filter('user_from', userId);
-        const [ents] = await ds.runQuery(query);
-        return ents;
+        const fromQuery = ds.createQuery(KIND_TRANSACTION)
+            .filter('addressFrom', userId);
+            const toQuery = ds.createQuery(KIND_TRANSACTION)
+            .filter('addressTo', userId);
+        const [[fromTxs], [toTxs]] = await Promise.all([
+            ds.runQuery(fromQuery),
+            ds.runQuery(toQuery),
+        ]);
+        return fromTxs.concat(toTxs);
     }
 
     public async saveTransaction(transaction: Transaction, overwrite: boolean) {
         const ds = datastore();
         const tran = ds.transaction();
         try {
-            const key = ds.key([KIND_TRANSACTION, transaction.ethTransactionId]);
+            const key = ds.key([KIND_TRANSACTION, transaction.txHash]);
             const [ent] = await tran.get(key);
             if (ent && !overwrite) {
                 return;

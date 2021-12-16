@@ -19,12 +19,6 @@ export default defineHandlers({
             res.status(400).end();
             return;
         }
-        const userAddr = signedRequest.data;
-        const user = await dao.getUser(userAddr);
-        if (!user) {
-            res.status(403).end();
-            return;
-        }
 
         const web3 = connectWeb3(signedRequest.network);
         if (!web3) {
@@ -32,9 +26,10 @@ export default defineHandlers({
             return;
         }
 
-        const signedAddr = await web3.eth.accounts.recover(userAddr, signedRequest.signature, false);
-        if (signedAddr.toLowerCase() !== userAddr.toLowerCase()) {
-            res.status(401).end();
+        const signedAddr = await web3.eth.accounts.recover(signedRequest.data, signedRequest.signature, false);
+        const user = await dao.getUser(signedAddr.toLowerCase());
+        if (!user) {
+            res.status(403).end();
             return;
         }
 
