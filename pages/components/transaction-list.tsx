@@ -83,10 +83,10 @@ export default function TransactionList(props: TransactionListProps) {
     const [rows, setRows] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
 
-    const loadTransactions = () => {
+    const loadTransactions = network => {
         setIsLoading(true);
         setRows([]);
-        getTransactions(props.address)
+        getTransactions(props.address, network)
             .then(setRows)
             .catch(err => alert(`Failed to fetch transactions: ${err}`))
             .finally(() => setIsLoading(false));
@@ -100,7 +100,7 @@ export default function TransactionList(props: TransactionListProps) {
         if (isLoading) {
             return;
         }
-        loadTransactions();
+        props.web3.eth.net.getNetworkType().then(loadTransactions);
     }, [props.lastUpdate]);
 
     return <Box>
@@ -122,8 +122,8 @@ export default function TransactionList(props: TransactionListProps) {
     </Box>;
 }
 
-async function getTransactions(userAddr: string): Promise<TransactionViewModel[]> {
-    const resp = await fetch(`/api/transactions/${userAddr}`);
+async function getTransactions(userAddr: string, network: string): Promise<TransactionViewModel[]> {
+    const resp = await fetch(`/api/transactions/${userAddr}?network=${network}`);
     if (!resp.ok) {
         console.log(`Failed to fetch transactions for user ${userAddr}: ${resp.status}`);
         return [];

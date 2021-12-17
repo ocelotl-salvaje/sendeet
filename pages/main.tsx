@@ -12,16 +12,23 @@ export default function MainLayout({ ethereum }) {
     const [user, setUser] = useState(null as User);
     const [isUserChanging, setIsUserChanging] = useState(false);
     const [lastUpdate, setLastUpdate] = useState(0);
+    const [network, setNetwork] = useState('');
     const updateChildren = () => {
         setLastUpdate(n => n + 1);
     };
 
     useEffect(() => {
+        web3.eth.net.getNetworkType().then(setNetwork);
         ethereum.on('networkChanged', network => {
             console.log(`Connected to network ${network}`);
             updateChildren();
+            web3.eth.net.getNetworkType().then(setNetwork);
         });
     }, []);
+
+    if (network === 'main') {
+        return <h1>Mainnet is not supported (yet). Please use one of the testnets.</h1>
+    }
 
     const mainContent = !user
         ? welcome()

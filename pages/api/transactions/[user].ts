@@ -12,7 +12,9 @@ export default defineHandlers({
             return;
         }
 
-        const trans = await dao.getUserTransactions(userAddr);
+        const network = <string>req.query.network;
+
+        const trans = await dao.getUserTransactions(userAddr, network);
         const addresses = Array.from(new Set(trans.flatMap(tx => [tx.addressFrom, tx.addressTo])));
         const names = await Promise.all(addresses.map(addr =>
             dao.getUser(addr).then(u => u?.name)));

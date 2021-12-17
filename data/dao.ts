@@ -50,12 +50,16 @@ export default class DAO {
         }
     }
 
-    public async getUserTransactions(userId: string): Promise<Transaction[]> {
+    public async getUserTransactions(userId: string, network?: string): Promise<Transaction[]> {
         const ds = datastore();
         const fromQuery = ds.createQuery(KIND_TRANSACTION)
             .filter('addressFrom', userId);
-            const toQuery = ds.createQuery(KIND_TRANSACTION)
+        const toQuery = ds.createQuery(KIND_TRANSACTION)
             .filter('addressTo', userId);
+        if (network) {
+            fromQuery.filter('network', network);
+            toQuery.filter('network', network);
+        }
         const [[fromTxs], [toTxs]] = await Promise.all([
             ds.runQuery(fromQuery),
             ds.runQuery(toQuery),
